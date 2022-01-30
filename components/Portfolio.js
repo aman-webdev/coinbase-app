@@ -3,27 +3,32 @@ import styled from "styled-components";
 import { BsThreeDotsVertical } from "react-icons/bs";
 import Coin from "./Coin";
 import { coins } from "../static/coins";
+
 import BalanceChart from "./BalanceChart";
 
-const Portfolio = () => {
-  const [sanityTokens, setSanityTokens] = useState([]);
+const Portfolio = ({ sanityTokens, thirdWebTokens, walletAddress }) => {
+  const [walletBalance, setWalletBalance] = useState(0);
+
+  const tokenToUSD = {};
+  for (const token of sanityTokens) {
+    tokenToUSD[token.contractAddress] = Number(token.usdPrice);
+  }
   useEffect(() => {
-    const getCoins = async () => {
-      try {
-        const coins = await fetch(
-          "https://fg2ect05.api.sanity.io/v1/data/query/production?query=*%5B_type%3D%3D%22coins%22%5D%7B%0A%20%20name%2CusdPrice%2CcontractAddress%2Csymbol%2Clogo%0A%7D"
-        );
+    const calculateWalletBalance = async () => {
+      const tokenBalance = await Promise.all(
+        thirdWebTokens.map(async (token) => {
+          const balance = await token.balanceOf(walletAddress);
+          return Number(balance.displayValue) * tokenToUSD[token.address];
+        })
+      );
 
-        const tempSanityTokens = await coins.json();
-
-        setSanityTokens(tempSanityTokens.result);
-      } catch (err) {
-        console.log(err);
-      }
+      setWalletBalance(
+        tokenBalance.reduce((balance, total) => total + balance, 0)
+      );
     };
-    getCoins();
+    calculateWalletBalance();
   }, []);
-  console.log(sanityTokens);
+  console.log(walletBalance);
   return (
     <Wrapper>
       <Content>
@@ -32,8 +37,8 @@ const Portfolio = () => {
             <Balance>
               <BalanceTitle>Portfolio Balance</BalanceTitle>
               <BalanceValue>
-                {/* ${walletBalance.toLocaleString()} */}
-                $46,000
+                ${walletBalance.toLocaleString()}
+                {/* $46,000 */}
               </BalanceValue>
             </Balance>
           </div>
@@ -80,10 +85,7 @@ const Wrapper = styled.div`
   flex: 1;
   display: flex;
   justify-content: center;
-  &::-webkit-scrollbar {
-    display: none;
-    width: 1px;
-  }
+  /*   */
 `;
 
 const Content = styled.div`
